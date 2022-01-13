@@ -2,9 +2,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
+import time
+import os
+
 import argparse
 import csv
-import os
+
 import shutil
 
 from PIL import Image
@@ -19,19 +23,29 @@ import torchvision
 import cv2
 import numpy as np
 
-import sys
-sys.path.append("../lib")
-import time
-
 # import _init_paths
+sys.path.append("..")
+sys.path.append("../lib/config")
+sys.path.append("../lib/core")
+sys.path.append("../lib/utils")
+sys.path.append("../lib/models")
 import models
-from config import cfg
-from config import update_config
-from core.inference import get_final_preds
-from utils.transforms import get_affine_transform
+import pose_hrnet
+import pose_resnet
+import default
+from default import _C as cfg
+from default import update_config
+# from config.default import *
+# from config import cfg
+# from config import update_config
+import inference1
+from inference1 import get_final_preds
+# from core.inference import get_final_preds
+import transforms1
+from transforms1 import get_affine_transform
+# from utils.transforms import get_affine_transform
 
 CTX = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
 
 COCO_KEYPOINT_INDEXES = {
     0: 'nose',
@@ -105,7 +119,7 @@ def get_pose_estimation_prediction(pose_model, image, centers, scales, transform
             flags=cv2.INTER_LINEAR)
 
         # hwc -> 1chw
-        model_input = transform(model_input)#.unsqueeze(0)
+        model_input = transform(model_input)  # .unsqueeze(0)
         model_inputs.append(model_input)
 
     # n * 1chw -> nchw
@@ -141,8 +155,8 @@ def box_to_center_scale(box, model_image_width, model_image_height):
 
     bottom_left_corner = box[0]
     top_right_corner = box[1]
-    box_width = top_right_corner[0]-bottom_left_corner[0]
-    box_height = top_right_corner[1]-bottom_left_corner[1]
+    box_width = top_right_corner[0] - bottom_left_corner[0]
+    box_height = top_right_corner[1] - bottom_left_corner[1]
     bottom_left_x = bottom_left_corner[0]
     bottom_left_y = bottom_left_corner[1]
     center[0] = bottom_left_x + box_width * 0.5
@@ -217,7 +231,7 @@ def main():
     box_model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
     box_model.to(CTX)
     box_model.eval()
-    pose_model = eval('models.'+cfg.MODEL.NAME+'.get_pose_net')(
+    pose_model = eval(cfg.MODEL.NAME + '.get_pose_net')(
         cfg, is_train=False
     )
 
@@ -234,13 +248,14 @@ def main():
     vidcap = cv2.VideoCapture(args.videoFile)
     fps = vidcap.get(cv2.CAP_PROP_FPS)
     if fps < args.inferenceFps:
-        print('desired inference fps is '+str(args.inferenceFps)+' but video fps is '+str(fps))
+        print('desired inference fps is ' + str(args.inferenceFps) + ' but video fps is ' + str(fps))
         exit()
     skip_frame_cnt = round(fps / args.inferenceFps)
     frame_width = int(vidcap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    outcap = cv2.VideoWriter('{}/{}_pose.avi'.format(args.outputDir, os.path.splitext(os.path.basename(args.videoFile))[0]),
-                             cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), int(skip_frame_cnt), (frame_width, frame_height))
+    outcap = cv2.VideoWriter(
+        '{}/{}_pose.avi'.format(args.outputDir, os.path.splitext(os.path.basename(args.videoFile))[0]),
+        cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), int(skip_frame_cnt), (frame_width, frame_height))
 
     count = 0
     while vidcap.isOpened():
@@ -299,6 +314,7 @@ def main():
         new_csv_row = []
         for coords in pose_preds:
             # Draw each point on image
+            new_csv_row.extend([count])
             for coord in coords:
                 x_coord, y_coord = int(coord[0]), int(coord[1])
                 cv2.circle(image_debug, (x_coord, y_coord), 4, (255, 0, 0), 2)
@@ -308,9 +324,9 @@ def main():
 
         text = "{:03.2f} sec".format(total_then - total_now)
         cv2.putText(image_debug, text, (100, 50), cv2.FONT_HERSHEY_SIMPLEX,
-                            1, (0, 0, 255), 2, cv2.LINE_AA)
+                    1, (0, 0, 255), 2, cv2.LINE_AA)
 
-        cv2.imshow("pos", image_debug)
+        # cv2.imshow("pos", image_debug)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
@@ -318,14 +334,18 @@ def main():
         img_file = os.path.join(pose_dir, 'pose_{:08d}.jpg'.format(count))
         cv2.imwrite(img_file, image_debug)
         outcap.write(image_debug)
-
+        print("in the loop...")
+        if count == 117:
+            break
 
     # write csv
     csv_headers = ['frame']
     for keypoint in COCO_KEYPOINT_INDEXES.values():
-        csv_headers.extend([keypoint+'_x', keypoint+'_y'])
+        csv_headers.extend([keypoint + '_x', keypoint + '_y'])
 
+    
     csv_output_filename = os.path.join(args.outputDir, 'pose-data.csv')
+    print(csv_output_filename)
     with open(csv_output_filename, 'w', newline='') as csvfile:
         csvwriter = csv.writer(csvfile)
         csvwriter.writerow(csv_headers)

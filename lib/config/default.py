@@ -19,7 +19,7 @@ _C = CN()
 _C.OUTPUT_DIR = ''
 _C.LOG_DIR = ''
 _C.DATA_DIR = ''
-_C.GPUS = (0,)
+_C.GPUS = (1,)
 _C.WORKERS = 4
 _C.PRINT_FREQ = 20
 _C.AUTO_RESUME = False
@@ -112,7 +112,7 @@ _C.TEST.OKS_THRE = 0.5
 _C.TEST.IN_VIS_THRE = 0.0
 _C.TEST.COCO_BBOX_FILE = ''
 _C.TEST.BBOX_THRE = 1.0
-_C.TEST.MODEL_FILE = ''
+_C.TEST.MODEL_FILE = '../'
 
 # debug
 _C.DEBUG = CN()

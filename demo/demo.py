@@ -20,13 +20,24 @@ import cv2
 import numpy as np
 import time
 
+os.sys.path.append("..")
+os.sys.path.append("../lib/config")
+os.sys.path.append("../lib/core")
+os.sys.path.append("../lib/utils")
+os.sys.path.append("../lib/models")
 
-import _init_paths
+# import _init_paths
 import models
-from config import cfg
-from config import update_config
-from core.function import get_final_preds
-from utils.transforms import get_affine_transform
+import pose_hrnet
+import pose_resnet
+from default import _C as cfg
+from default import update_config
+# from config import cfg
+# from config import update_config
+from inference1 import get_final_preds
+# from core.function import get_final_preds
+from transforms1 import get_affine_transform
+# from utils.transforms import get_affine_transform
 
 COCO_KEYPOINT_INDEXES = {
     0: 'nose',
@@ -194,7 +205,7 @@ def box_to_center_scale(box, model_image_width, model_image_height):
 def parse_args():
     parser = argparse.ArgumentParser(description='Train keypoints network')
     # general
-    parser.add_argument('--cfg', type=str, default='demo/inference-config.yaml')
+    parser.add_argument('--cfg', type=str, default='inference-config.yaml')
     parser.add_argument('--video', type=str)
     parser.add_argument('--webcam',action='store_true')
     parser.add_argument('--image',type=str)
@@ -211,7 +222,7 @@ def parse_args():
     # args expected by supporting codebase  
     args.modelDir = ''
     args.logDir = ''
-    args.dataDir = ''
+    args.dataDir = '../'
     args.prevModelDir = ''
     return args
 
@@ -223,13 +234,15 @@ def main():
     torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
 
     args = parse_args()
+    print("before....", cfg.TEST.MODEL_FILE)
     update_config(cfg, args)
+    print("after....", cfg.TEST.MODEL_FILE)
 
     box_model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
     box_model.to(CTX)
     box_model.eval()
 
-    pose_model = eval('models.'+cfg.MODEL.NAME+'.get_pose_net')(
+    pose_model = eval(cfg.MODEL.NAME+'.get_pose_net')(
         cfg, is_train=False
     )
 
@@ -238,9 +251,11 @@ def main():
         pose_model.load_state_dict(torch.load(cfg.TEST.MODEL_FILE), strict=False)
     else:
         print('expected model defined in config at TEST.MODEL_FILE')
+    print("the device_id: ", cfg.GPUS)    
+    # torch.cuda.set_device(0)
+    # pose_model = torch.nn.DataParallel(pose_model, device_ids=[0,1])
 
-    pose_model = torch.nn.DataParallel(pose_model, device_ids=cfg.GPUS)
-    pose_model.to(CTX)
+    # pose_model.to(CTX)
     pose_model.eval()
 
     # Loading an video or an image or webcam 
@@ -256,7 +271,7 @@ def main():
 
     if args.webcam or args.video:
         if args.write:
-            save_path = 'output.avi'
+            save_path = '../demo_output/output.avi'
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
             out = cv2.VideoWriter(save_path,fourcc, 24.0, (int(vidcap.get(3)),int(vidcap.get(4))))
         while True:
