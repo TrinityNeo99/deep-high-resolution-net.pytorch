@@ -91,6 +91,7 @@ def draw_pose(keypoints,img):
     :params keypoints: the shape should be equal to [17,2]
     :params img:
     """
+    print("the key points are ", keypoints)
     assert keypoints.shape == (NUM_KPTS,2)
     for i in range(len(SKELETON)):
         kpt_a, kpt_b = SKELETON[i][0], SKELETON[i][1]
@@ -271,10 +272,13 @@ def main():
 
     if args.webcam or args.video:
         if args.write:
-            save_path = '../demo_output/output.avi'
+            save_path = 'F:/HRnet-test/IMG_2400_output/demo-output.avi'
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
             out = cv2.VideoWriter(save_path,fourcc, 24.0, (int(vidcap.get(3)),int(vidcap.get(4))))
+        count = 0;    
         while True:
+            count = count + 1
+            print("current frame is: ", count)
             ret, image_bgr = vidcap.read()
             if ret:
                 last_time = time.time()
@@ -305,7 +309,7 @@ def main():
                 if args.write:
                     out.write(image_bgr)
 
-                cv2.imshow('demo',image_bgr)
+                # cv2.imshow('demo',image_bgr)
                 if cv2.waitKey(1) & 0XFF==ord('q'):
                     break
             else:

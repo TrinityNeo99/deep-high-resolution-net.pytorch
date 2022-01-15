@@ -192,7 +192,7 @@ def parse_args():
     parser.add_argument('--cfg', type=str, required=True)
     parser.add_argument('--videoFile', type=str, required=True)
     parser.add_argument('--outputDir', type=str, default='/output/')
-    parser.add_argument('--inferenceFps', type=int, default=10)
+    parser.add_argument('--inferenceFps', type=int, default=30)
     parser.add_argument('--writeBoxFrames', action='store_true')
 
     parser.add_argument('opts',
@@ -224,6 +224,7 @@ def main():
     torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
 
     args = parse_args()
+    print("227: infernce fps: ", args.inferenceFps)
     update_config(cfg, args)
     pose_dir = prepare_output_dirs(args.outputDir)
     csv_output_rows = []
@@ -250,6 +251,7 @@ def main():
     if fps < args.inferenceFps:
         print('desired inference fps is ' + str(args.inferenceFps) + ' but video fps is ' + str(fps))
         exit()
+    print("the fps is ", fps, " the inferenceFps is: ", args.inferenceFps)
     skip_frame_cnt = round(fps / args.inferenceFps)
     frame_width = int(vidcap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -258,7 +260,8 @@ def main():
         cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), int(skip_frame_cnt), (frame_width, frame_height))
 
     count = 0
-    while vidcap.isOpened():
+    ret, image_bgr = vidcap.read()
+    while ret:
         total_now = time.time()
         ret, image_bgr = vidcap.read()
         count += 1
@@ -268,6 +271,7 @@ def main():
 
         if count % skip_frame_cnt != 0:
             continue
+            pass
 
         image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
 
@@ -335,8 +339,6 @@ def main():
         cv2.imwrite(img_file, image_debug)
         outcap.write(image_debug)
         print("in the loop...")
-        if count == 117:
-            break
 
     # write csv
     csv_headers = ['frame']
